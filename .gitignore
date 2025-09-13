@@ -15,3 +15,7 @@ Thumbs.db
 
 # Site build artifacts (adjust as needed)
 site/assets/cache/
+
+# keep old path out
+git-secrets/
+
