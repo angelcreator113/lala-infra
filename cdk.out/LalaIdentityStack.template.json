@@ -194,7 +194,7 @@
       {
        "Ref": "UserPoolClient2F5918F7"
       },
-      "&response_type=code&scope=email+openid+profile&redirect_uri=https%3A%2F%2F%24%7BToken%5BTOKEN.91%5D%7D"
+      "&response_type=code&scope=email+openid+profile&redirect_uri=https%3A%2F%2F%24%7BToken%5BTOKEN.97%5D%7D"
      ]
     ]
    }

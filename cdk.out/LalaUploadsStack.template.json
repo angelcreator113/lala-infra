@@ -16,18 +16,29 @@
      "CorsRules": [
       {
        "AllowedHeaders": [
-        "*"
+        "content-type",
+        "x-amz-tagging",
+        "x-amz-acl",
+        "x-amz-security-token",
+        "x-amz-user-agent",
+        "authorization",
+        "x-amz-meta-*"
        ],
        "AllowedMethods": [
         "PUT",
-        "GET"
+        "GET",
+        "HEAD"
        ],
        "AllowedOrigins": [
-        "*"
+        "https://app.stylingadventures.com",
+        "http://localhost:3000"
        ],
        "ExposedHeaders": [
-        "ETag"
-       ]
+        "ETag",
+        "x-amz-request-id",
+        "x-amz-version-id"
+       ],
+       "MaxAge": 600
       }
      ]
     },
@@ -321,13 +332,14 @@
    "Type": "AWS::Lambda::Function",
    "Properties": {
     "Code": {
-     "ZipFile": "\nimport os, json, boto3\nfrom uuid import uuid4\ns3 = boto3.client(\"s3\")\nBUCKET = os.environ[\"BUCKET_NAME\"]\nALLOW_CT = set([x.strip() for x in (os.environ.get(\"ALLOW_CT\") or \"\").split(\",\") if x.strip()])\nMAX_BYTES = int(os.environ.get(\"MAX_BYTES\") or \"10485760\")\ndef _resp(status, body): return {\"statusCode\": status, \"headers\": {\"Access-Control-Allow-Origin\": \"*\"}, \"body\": json.dumps(body)}\ndef _sub(event): return (((event or {}).get(\"requestContext\") or {}).get(\"authorizer\") or {}).get(\"claims\", {}).get(\"sub\")\ndef handler(event, context):\n    try:\n        sub = _sub(event)\n        if not sub: return _resp(401, {\"error\":\"unauthorized\"})\n        body = json.loads(event.get(\"body\") or \"{}\")\n        filename = (body.get(\"filename\") or \"file.bin\").replace(\"/\", \"_\")\n        ctype = body.get(\"contentType\") or \"application/octet-stream\"\n        size = int(body.get(\"size\") or 0)\n        if ALLOW_CT and ctype not in ALLOW_CT: return _resp(400, {\"error\": \"contentType not allowed\"})\n        if size and size > MAX_BYTES: return _resp(400, {\"error\": f\"file too large (>{MAX_BYTES} bytes)\"})\n        key = f\"uploads/{sub}/{uuid4()}/{filename}\"\n        url = s3.generate_presigned_url(\"put_object\", Params={\"Bucket\": BUCKET, \"Key\": key, \"ContentType\": ctype, \"Tagging\": \"auto-expire=true\"}, ExpiresIn=3600)\n        return _resp(200, {\"url\": url, \"key\": key})\n    except Exception as e:\n        return _resp(500, {\"error\": str(e)})\n      "
+     "ZipFile": "\nimport os, json, boto3\nfrom uuid import uuid4\ns3 = boto3.client(\"s3\")\nBUCKET = os.environ[\"BUCKET_NAME\"]\nALLOW_CT = set([x.strip() for x in (os.environ.get(\"ALLOW_CT\") or \"\").split(\",\") if x.strip()])\nMAX_BYTES = int(os.environ.get(\"MAX_BYTES\") or \"10485760\")\nALLOWED = set([x.strip() for x in (os.environ.get(\"ALLOWED_ORIGINS\") or \"\").split(\",\") if x.strip()])\n\ndef _allow_origin(event):\n    hdrs = (event or {}).get(\"headers\") or {}\n    origin = hdrs.get(\"origin\") or hdrs.get(\"Origin\")\n    return origin if origin in ALLOWED else None\n\ndef _resp(event, status, body):\n    origin = _allow_origin(event)\n    h = {\"content-type\":\"application/json\"}\n    if origin:\n        h[\"Access-Control-Allow-Origin\"] = origin\n        h[\"Vary\"] = \"Origin\"\n    return {\"statusCode\": status, \"headers\": h, \"body\": json.dumps(body)}\n\ndef _sub(event): return (((event or {}).get(\"requestContext\") or {}).get(\"authorizer\") or {}).get(\"claims\", {}).get(\"sub\")\n\ndef handler(event, context):\n    try:\n        sub = _sub(event)\n        if not sub: return _resp(event, 401, {\"error\":\"unauthorized\"})\n        body = json.loads(event.get(\"body\") or \"{}\")\n        filename = (body.get(\"filename\") or \"file.bin\").replace(\"/\", \"_\")\n        ctype = body.get(\"contentType\") or \"application/octet-stream\"\n        size = int(body.get(\"size\") or 0)\n        if ALLOW_CT and ctype not in ALLOW_CT: return _resp(event, 400, {\"error\": \"contentType not allowed\"})\n        if size and size > MAX_BYTES: return _resp(event, 400, {\"error\": f\"file too large (>{MAX_BYTES} bytes)\"})\n        key = f\"uploads/{sub}/{uuid4()}/{filename}\"\n        url = s3.generate_presigned_url(\n            \"put_object\",\n            Params={\"Bucket\": BUCKET, \"Key\": key, \"ContentType\": ctype, \"Tagging\": \"auto-expire=true\"},\n            ExpiresIn=3600\n        )\n        return _resp(event, 200, {\"url\": url, \"key\": key})\n    except Exception as e:\n        return _resp(event, 500, {\"error\": str(e)})\n      "
     },
     "Environment": {
      "Variables": {
       "BUCKET_NAME": {
        "Ref": "UploadsBucket5E5E9B64"
       },
+      "ALLOWED_ORIGINS": "https://app.stylingadventures.com,http://localhost:3000",
       "ALLOW_CT": "image/jpeg,image/png,image/webp,image/gif,application/pdf,text/plain",
       "MAX_BYTES": "10485760"
      }
@@ -437,13 +449,14 @@
    "Type": "AWS::Lambda::Function",
    "Properties": {
     "Code": {
-     "ZipFile": "\nimport os, json, boto3, urllib.parse\ns3 = boto3.client(\"s3\")\nBUCKET = os.environ[\"BUCKET_NAME\"]\ndef _resp(status, body): return {\"statusCode\": status, \"headers\": {\"Access-Control-Allow-Origin\": \"*\"}, \"body\": json.dumps(body)}\ndef _sub(event): return (((event or {}).get(\"requestContext\") or {}).get(\"authorizer\") or {}).get(\"claims\", {}).get(\"sub\")\ndef handler(event, context):\n    try:\n        sub = _sub(event)\n        if not sub: return _resp(401, {\"error\":\"unauthorized\"})\n        qs = event.get(\"queryStringParameters\") or {}\n        key = qs.get(\"key\")\n        if not key: return _resp(400, {\"error\": \"key query param required\"})\n        key = urllib.parse.unquote(key)\n        user_prefix = f\"uploads/{sub}/\"\n        if not key.startswith(user_prefix): return _resp(403, {\"error\": \"not your key\"})\n        download = (qs.get(\"download\") or \"false\").lower() == \"true\"\n        params = {\"Bucket\": BUCKET, \"Key\": key, \"ResponseContentDisposition\": \"attachment\" if download else \"inline\"}\n        url = s3.generate_presigned_url(\"get_object\", Params=params, ExpiresIn=300)\n        return _resp(200, {\"url\": url})\n    except Exception as e:\n        return _resp(500, {\"error\": str(e)})\n      "
+     "ZipFile": "\nimport os, json, boto3, urllib.parse\ns3 = boto3.client(\"s3\")\nBUCKET = os.environ[\"BUCKET_NAME\"]\nALLOWED = set([x.strip() for x in (os.environ.get(\"ALLOWED_ORIGINS\") or \"\").split(\",\") if x.strip()])\n\ndef _allow_origin(event):\n    hdrs = (event or {}).get(\"headers\") or {}\n    origin = hdrs.get(\"origin\") or hdrs.get(\"Origin\")\n    return origin if origin in ALLOWED else None\n\ndef _resp(event, status, body):\n    origin = _allow_origin(event)\n    h = {\"content-type\":\"application/json\"}\n    if origin:\n        h[\"Access-Control-Allow-Origin\"] = origin\n        h[\"Vary\"] = \"Origin\"\n    return {\"statusCode\": status, \"headers\": h, \"body\": json.dumps(body)}\n\ndef _sub(event): return (((event or {}).get(\"requestContext\") or {}).get(\"authorizer\") or {}).get(\"claims\", {}).get(\"sub\")\n\ndef handler(event, context):\n    try:\n        sub = _sub(event)\n        if not sub: return _resp(event, 401, {\"error\":\"unauthorized\"})\n        qs = event.get(\"queryStringParameters\") or {}\n        key = qs.get(\"key\")\n        if not key: return _resp(event, 400, {\"error\": \"key query param required\"})\n        key = urllib.parse.unquote(key)\n        user_prefix = f\"uploads/{sub}/\"\n        if not key.startswith(user_prefix): return _resp(event, 403, {\"error\": \"not your key\"})\n        download = (qs.get(\"download\") or \"false\").lower() == \"true\"\n        params = {\"Bucket\": BUCKET, \"Key\": key, \"ResponseContentDisposition\": \"attachment\" if download else \"inline\"}\n        url = s3.generate_presigned_url(\"get_object\", Params=params, ExpiresIn=300)\n        return _resp(event, 200, {\"url\": url})\n    except Exception as e:\n        return _resp(event, 500, {\"error\": str(e)})\n      "
     },
     "Environment": {
      "Variables": {
       "BUCKET_NAME": {
        "Ref": "UploadsBucket5E5E9B64"
-      }
+      },
+      "ALLOWED_ORIGINS": "https://app.stylingadventures.com,http://localhost:3000"
      }
     },
     "Handler": "index.handler",
@@ -551,13 +564,14 @@
    "Type": "AWS::Lambda::Function",
    "Properties": {
     "Code": {
-     "ZipFile": "\nimport os, json, boto3, urllib.parse, datetime\nfrom datetime import timezone\ns3 = boto3.client(\"s3\")\nBUCKET = os.environ[\"BUCKET_NAME\"]\ndef _resp(status, body): return {\"statusCode\": status, \"headers\": {\"Access-Control-Allow-Origin\": \"*\"}, \"body\": json.dumps(body, default=str)}\ndef _sub(event): return (((event or {}).get(\"requestContext\") or {}).get(\"authorizer\") or {}).get(\"claims\", {}).get(\"sub\")\ndef handler(event, context):\n    try:\n        sub = _sub(event)\n        if not sub: return _resp(401, {\"error\":\"unauthorized\"})\n        qs = event.get(\"queryStringParameters\") or {}\n        limit = int(qs.get(\"limit\") or 50)\n        limit = 1 if limit < 1 else 1000 if limit > 1000 else limit\n        prefix = qs.get(\"prefix\") or f\"uploads/{sub}/\"\n        prefix = urllib.parse.unquote(prefix)\n        if not prefix.startswith(f\"uploads/{sub}/\"): return _resp(403, {\"error\":\"prefix must start with your uploads/ sub\"})\n        resp = s3.list_objects_v2(Bucket=BUCKET, Prefix=prefix, MaxKeys=limit)\n        items = [{\"key\": o[\"Key\"], \"size\": o[\"Size\"], \"lastModified\": o[\"LastModified\"].astimezone(timezone.utc).isoformat()} for o in resp.get(\"Contents\", [])]\n        return _resp(200, {\"items\": items})\n    except Exception as e:\n        return _resp(500, {\"error\": str(e)})\n      "
+     "ZipFile": "\nimport os, json, boto3, urllib.parse, datetime\nfrom datetime import timezone\ns3 = boto3.client(\"s3\")\nBUCKET = os.environ[\"BUCKET_NAME\"]\nALLOWED = set([x.strip() for x in (os.environ.get(\"ALLOWED_ORIGINS\") or \"\").split(\",\") if x.strip()])\n\ndef _allow_origin(event):\n    hdrs = (event or {}).get(\"headers\") or {}\n    origin = hdrs.get(\"origin\") or hdrs.get(\"Origin\")\n    return origin if origin in ALLOWED else None\n\ndef _resp(event, status, body):\n    origin = _allow_origin(event)\n    h = {\"content-type\":\"application/json\"}\n    if origin:\n        h[\"Access-Control-Allow-Origin\"] = origin\n        h[\"Vary\"] = \"Origin\"\n    return {\"statusCode\": status, \"headers\": h, \"body\": json.dumps(body, default=str)}\n\ndef _sub(event): return (((event or {}).get(\"requestContext\") or {}).get(\"authorizer\") or {}).get(\"claims\", {}).get(\"sub\")\n\ndef handler(event, context):\n    try:\n        sub = _sub(event)\n        if not sub: return _resp(event, 401, {\"error\":\"unauthorized\"})\n        qs = event.get(\"queryStringParameters\") or {}\n        limit = int(qs.get(\"limit\") or 50)\n        limit = 1 if limit < 1 else 1000 if limit > 1000 else limit\n        prefix = qs.get(\"prefix\") or f\"uploads/{sub}/\"\n        prefix = urllib.parse.unquote(prefix)\n        if not prefix.startswith(f\"uploads/{sub}/\"): return _resp(event, 403, {\"error\":\"prefix must start with your uploads/ sub\"})\n        resp = s3.list_objects_v2(Bucket=BUCKET, Prefix=prefix, MaxKeys=limit)\n        items = [{\"key\": o[\"Key\"], \"size\": o[\"Size\"], \"lastModified\": o[\"LastModified\"].astimezone(timezone.utc).isoformat()} for o in resp.get(\"Contents\", [])]\n        return _resp(event, 200, {\"items\": items})\n    except Exception as e:\n        return _resp(event, 500, {\"error\": str(e)})\n      "
     },
     "Environment": {
      "Variables": {
       "BUCKET_NAME": {
        "Ref": "UploadsBucket5E5E9B64"
-      }
+      },
+      "ALLOWED_ORIGINS": "https://app.stylingadventures.com,http://localhost:3000"
      }
     },
     "Handler": "index.handler",
@@ -653,13 +667,14 @@
    "Type": "AWS::Lambda::Function",
    "Properties": {
     "Code": {
-     "ZipFile": "\nimport os, json, boto3, urllib.parse\ns3 = boto3.client(\"s3\")\nBUCKET = os.environ[\"BUCKET_NAME\"]\ndef _resp(status, body): return {\"statusCode\": status, \"headers\": {\"Access-Control-Allow-Origin\": \"*\"}, \"body\": json.dumps(body)}\ndef _sub(event): return (((event or {}).get(\"requestContext\") or {}).get(\"authorizer\") or {}).get(\"claims\", {}).get(\"sub\")\ndef handler(event, context):\n    try:\n        sub = _sub(event)\n        if not sub: return _resp(401, {\"error\":\"unauthorized\"})\n        qs = event.get(\"queryStringParameters\") or {}\n        key = qs.get(\"key\")\n        if not key and event.get(\"body\"):\n            try: key = json.loads(event[\"body\"]).get(\"key\")\n            except Exception: pass\n        if not key: return _resp(400, {\"error\":\"key required\"})\n        key = urllib.parse.unquote(key)\n        if not key.startswith(f\"uploads/{sub}/\"): return _resp(403, {\"error\":\"not your key\"})\n        s3.delete_object(Bucket=BUCKET, Key=key)\n        return _resp(200, {\"deleted\": key})\n    except Exception as e:\n        return _resp(500, {\"error\": str(e)})\n      "
+     "ZipFile": "\nimport os, json, boto3, urllib.parse\ns3 = boto3.client(\"s3\")\nBUCKET = os.environ[\"BUCKET_NAME\"]\nALLOWED = set([x.strip() for x in (os.environ.get(\"ALLOWED_ORIGINS\") or \"\").split(\",\") if x.strip()])\n\ndef _allow_origin(event):\n    hdrs = (event or {}).get(\"headers\") or {}\n    origin = hdrs.get(\"origin\") or hdrs.get(\"Origin\")\n    return origin if origin in ALLOWED else None\n\ndef _resp(event, status, body):\n    origin = _allow_origin(event)\n    h = {\"content-type\":\"application/json\"}\n    if origin:\n        h[\"Access-Control-Allow-Origin\"] = origin\n        h[\"Vary\"] = \"Origin\"\n    return {\"statusCode\": status, \"headers\": h, \"body\": json.dumps(body)}\n\ndef _sub(event): return (((event or {}).get(\"requestContext\") or {}).get(\"authorizer\") or {}).get(\"claims\", {}).get(\"sub\")\n\ndef handler(event, context):\n    try:\n        sub = _sub(event)\n        if not sub: return _resp(event, 401, {\"error\":\"unauthorized\"})\n        qs = event.get(\"queryStringParameters\") or {}\n        key = qs.get(\"key\")\n        if not key and event.get(\"body\"):\n            try: key = json.loads(event[\"body\"]).get(\"key\")\n            except Exception: pass\n        if not key: return _resp(event, 400, {\"error\":\"key required\"})\n        key = urllib.parse.unquote(key)\n        if not key.startswith(f\"uploads/{sub}/\"): return _resp(event, 403, {\"error\":\"not your key\"})\n        s3.delete_object(Bucket=BUCKET, Key=key)\n        return _resp(event, 200, {\"deleted\": key})\n    except Exception as e:\n        return _resp(event, 500, {\"error\": str(e)})\n      "
     },
     "Environment": {
      "Variables": {
       "BUCKET_NAME": {
        "Ref": "UploadsBucket5E5E9B64"
-      }
+      },
+      "ALLOWED_ORIGINS": "https://app.stylingadventures.com,http://localhost:3000"
      }
     },
     "Handler": "index.handler",
@@ -744,7 +759,7 @@
     "aws:cdk:path": "LalaUploadsStack/UploadsApi/Account"
    }
   },
-  "UploadsApiDeployment4A67E04Cfd3e0e9a3dbaf8e79561f60ebaa7f966": {
+  "UploadsApiDeployment4A67E04C33b36a03142cd359d27d7d530c2da79f": {
    "Type": "AWS::ApiGateway::Deployment",
    "Properties": {
     "Description": "Automatically created by the RestApi construct",
@@ -777,7 +792,7 @@
    "Type": "AWS::ApiGateway::Stage",
    "Properties": {
     "DeploymentId": {
-     "Ref": "UploadsApiDeployment4A67E04Cfd3e0e9a3dbaf8e79561f60ebaa7f966"
+     "Ref": "UploadsApiDeployment4A67E04C33b36a03142cd359d27d7d530c2da79f"
     },
     "RestApiId": {
      "Ref": "UploadsApiF6E592E7"
@@ -802,8 +817,12 @@
       {
        "ResponseParameters": {
         "method.response.header.Access-Control-Allow-Headers": "'Content-Type,X-Amz-Date,Authorization,X-Api-Key,X-Amz-Security-Token,X-Amz-User-Agent'",
-        "method.response.header.Access-Control-Allow-Origin": "'*'",
+        "method.response.header.Access-Control-Allow-Origin": "'https://app.stylingadventures.com'",
+        "method.response.header.Vary": "'Origin'",
         "method.response.header.Access-Control-Allow-Methods": "'GET,POST,DELETE,OPTIONS'"
+       },
+       "ResponseTemplates": {
+        "application/json": "#set($origin = $input.params().header.get(\"Origin\"))\n#if($origin == \"\")\n  #set($origin = $input.params().header.get(\"origin\"))\n#end\n#if($origin == \"http://localhost:3000\")\n  #set($context.responseOverride.header.Access-Control-Allow-Origin = $origin)\n#end"
        },
        "StatusCode": "204"
       }
@@ -818,6 +837,7 @@
       "ResponseParameters": {
        "method.response.header.Access-Control-Allow-Headers": true,
        "method.response.header.Access-Control-Allow-Origin": true,
+       "method.response.header.Vary": true,
        "method.response.header.Access-Control-Allow-Methods": true
       },
       "StatusCode": "204"
@@ -866,8 +886,12 @@
       {
        "ResponseParameters": {
         "method.response.header.Access-Control-Allow-Headers": "'Content-Type,X-Amz-Date,Authorization,X-Api-Key,X-Amz-Security-Token,X-Amz-User-Agent'",
-        "method.response.header.Access-Control-Allow-Origin": "'*'",
+        "method.response.header.Access-Control-Allow-Origin": "'https://app.stylingadventures.com'",
+        "method.response.header.Vary": "'Origin'",
         "method.response.header.Access-Control-Allow-Methods": "'GET,POST,DELETE,OPTIONS'"
+       },
+       "ResponseTemplates": {
+        "application/json": "#set($origin = $input.params().header.get(\"Origin\"))\n#if($origin == \"\")\n  #set($origin = $input.params().header.get(\"origin\"))\n#end\n#if($origin == \"http://localhost:3000\")\n  #set($context.responseOverride.header.Access-Control-Allow-Origin = $origin)\n#end"
        },
        "StatusCode": "204"
       }
@@ -882,6 +906,7 @@
       "ResponseParameters": {
        "method.response.header.Access-Control-Allow-Headers": true,
        "method.response.header.Access-Control-Allow-Origin": true,
+       "method.response.header.Vary": true,
        "method.response.header.Access-Control-Allow-Methods": true
       },
       "StatusCode": "204"
@@ -1037,8 +1062,12 @@
       {
        "ResponseParameters": {
         "method.response.header.Access-Control-Allow-Headers": "'Content-Type,X-Amz-Date,Authorization,X-Api-Key,X-Amz-Security-Token,X-Amz-User-Agent'",
-        "method.response.header.Access-Control-Allow-Origin": "'*'",
+        "method.response.header.Access-Control-Allow-Origin": "'https://app.stylingadventures.com'",
+        "method.response.header.Vary": "'Origin'",
         "method.response.header.Access-Control-Allow-Methods": "'GET,POST,DELETE,OPTIONS'"
+       },
+       "ResponseTemplates": {
+        "application/json": "#set($origin = $input.params().header.get(\"Origin\"))\n#if($origin == \"\")\n  #set($origin = $input.params().header.get(\"origin\"))\n#end\n#if($origin == \"http://localhost:3000\")\n  #set($context.responseOverride.header.Access-Control-Allow-Origin = $origin)\n#end"
        },
        "StatusCode": "204"
       }
@@ -1053,6 +1082,7 @@
       "ResponseParameters": {
        "method.response.header.Access-Control-Allow-Headers": true,
        "method.response.header.Access-Control-Allow-Origin": true,
+       "method.response.header.Vary": true,
        "method.response.header.Access-Control-Allow-Methods": true
       },
       "StatusCode": "204"
@@ -1208,8 +1238,12 @@
       {
        "ResponseParameters": {
         "method.response.header.Access-Control-Allow-Headers": "'Content-Type,X-Amz-Date,Authorization,X-Api-Key,X-Amz-Security-Token,X-Amz-User-Agent'",
-        "method.response.header.Access-Control-Allow-Origin": "'*'",
+        "method.response.header.Access-Control-Allow-Origin": "'https://app.stylingadventures.com'",
+        "method.response.header.Vary": "'Origin'",
         "method.response.header.Access-Control-Allow-Methods": "'GET,POST,DELETE,OPTIONS'"
+       },
+       "ResponseTemplates": {
+        "application/json": "#set($origin = $input.params().header.get(\"Origin\"))\n#if($origin == \"\")\n  #set($origin = $input.params().header.get(\"origin\"))\n#end\n#if($origin == \"http://localhost:3000\")\n  #set($context.responseOverride.header.Access-Control-Allow-Origin = $origin)\n#end"
        },
        "StatusCode": "204"
       }
@@ -1224,6 +1258,7 @@
       "ResponseParameters": {
        "method.response.header.Access-Control-Allow-Headers": true,
        "method.response.header.Access-Control-Allow-Origin": true,
+       "method.response.header.Vary": true,
        "method.response.header.Access-Control-Allow-Methods": true
       },
       "StatusCode": "204"
@@ -1379,8 +1414,12 @@
       {
        "ResponseParameters": {
         "method.response.header.Access-Control-Allow-Headers": "'Content-Type,X-Amz-Date,Authorization,X-Api-Key,X-Amz-Security-Token,X-Amz-User-Agent'",
-        "method.response.header.Access-Control-Allow-Origin": "'*'",
+        "method.response.header.Access-Control-Allow-Origin": "'https://app.stylingadventures.com'",
+        "method.response.header.Vary": "'Origin'",
         "method.response.header.Access-Control-Allow-Methods": "'GET,POST,DELETE,OPTIONS'"
+       },
+       "ResponseTemplates": {
+        "application/json": "#set($origin = $input.params().header.get(\"Origin\"))\n#if($origin == \"\")\n  #set($origin = $input.params().header.get(\"origin\"))\n#end\n#if($origin == \"http://localhost:3000\")\n  #set($context.responseOverride.header.Access-Control-Allow-Origin = $origin)\n#end"
        },
        "StatusCode": "204"
       }
@@ -1395,6 +1434,7 @@
       "ResponseParameters": {
        "method.response.header.Access-Control-Allow-Headers": true,
        "method.response.header.Access-Control-Allow-Origin": true,
+       "method.response.header.Vary": true,
        "method.response.header.Access-Control-Allow-Methods": true
       },
       "StatusCode": "204"

@@ -16,16 +16,16 @@
         }
       }
     },
-    "cb28facc0cd15697560b4215e2a9cc372d952ee255dd5a94941d3ec1eea85abc": {
+    "ed76b64d70593119caa6162a22b58011190094132f5c73ec52b1ce89557d4686": {
       "displayName": "LalaUploadsStack Template",
       "source": {
         "path": "LalaUploadsStack.template.json",
         "packaging": "file"
       },
       "destinations": {
-        "637423256673-us-east-1-edd89122": {
+        "637423256673-us-east-1-d106cb57": {
           "bucketName": "cdk-hnb659fds-assets-637423256673-us-east-1",
-          "objectKey": "cb28facc0cd15697560b4215e2a9cc372d952ee255dd5a94941d3ec1eea85abc.json",
+          "objectKey": "ed76b64d70593119caa6162a22b58011190094132f5c73ec52b1ce89557d4686.json",
           "region": "us-east-1",
           "assumeRoleArn": "arn:${AWS::Partition}:iam::637423256673:role/cdk-hnb659fds-file-publishing-role-637423256673-us-east-1"
         }

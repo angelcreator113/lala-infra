@@ -600,7 +600,7 @@
      "cdk-hnb659fds-assets-637423256673-us-east-1"
     ],
     "SourceObjectKeys": [
-     "afd83aeba78024468fa6a4ea07b04216a00b522b3756d6d88c9cc29fba81e6c7.zip"
+     "adf5fc731074f8b5096f19156a5e52d186028803b3143a2088d475a0ea46cb70.zip"
     ],
     "DestinationBucketName": {
      "Ref": "SiteBucket397A1860"
@@ -824,7 +824,10 @@
      "cdk-hnb659fds-assets-637423256673-us-east-1"
     ],
     "SourceObjectKeys": [
-     "e5cc5bd149332ccaaea36c8d8a4108b2be86c1cf7316279fca7464d2a450eb55.zip"
+     "8a071141011f71513063fb21fd4c6b7906d830dddb18f4334e4cf2598773592f.zip"
+    ],
+    "SourceMarkers": [
+     {}
     ],
     "DestinationBucketName": {
      "Ref": "SiteBucket397A1860"

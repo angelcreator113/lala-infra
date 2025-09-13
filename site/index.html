@@ -57,7 +57,7 @@
     <section aria-labelledby="list-heading" class="card">
       <h2 id="list-heading">My recent files</h2>
       <button id="btnList" class="btn">Refresh list</button>
-      <div id="listOut" class="list" style="margin-top:8px"></div>
+      <div id="listOut" class="list mt-8"></div>
     </section>
   </main>
 
@@ -97,7 +97,47 @@
       const keyEl = document.getElementById("key");
       if (sub && !keyEl.value.startsWith("uploads/")) keyEl.value = `uploads/${sub}/`;
     }
-    function setTokens(t){ tokens = t; localStorage.setItem("lala.tokens", JSON.stringify(t)); displayWho(); }
+    function setTokens(t){
+      tokens = t;
+      localStorage.setItem("lala.tokens", JSON.stringify(t));
+      displayWho();
+    }
+
+    // ====== Token refresh helpers ======
+    function _expMs(unixSeconds){ return (Number(unixSeconds)||0) * 1000; }
+    function isExpired(idToken){
+      try{
+        const claims = parseJwt(idToken);
+        if (!claims?.exp) return true;
+        const SKEW = 60_000; // refresh 60s before actual expiry
+        return Date.now() >= (_expMs(claims.exp) - SKEW);
+      } catch { return true; }
+    }
+    async function refreshTokensIfNeeded(){
+      // Only if we have a refresh token and the id_token is missing/expired
+      if (!tokens?.refresh_token) return;
+      if (tokens?.id_token && !isExpired(tokens.id_token)) return;
+
+      const body = new URLSearchParams({
+        grant_type: "refresh_token",
+        client_id: USER_POOL_CLIENT_ID,
+        refresh_token: tokens.refresh_token,
+      });
+      const r = await fetch(`https://${COGNITO_DOMAIN}/oauth2/token`, {
+        method: "POST",
+        headers: { "content-type": "application/x-www-form-urlencoded" },
+        body
+      });
+      if (!r.ok) {
+        // Refresh failed — clear tokens so UI prompts login
+        setTokens(null);
+        return;
+      }
+      const t = await r.json();
+      // Some IdPs omit refresh_token on refresh; carry over the old one
+      if (!t.refresh_token && tokens.refresh_token) t.refresh_token = tokens.refresh_token;
+      setTokens(t);
+    }
 
     // ====== Auth helpers ======
     function login(){
@@ -131,6 +171,7 @@
     // ====== AppSync call ======
     async function runGql(){
       if (!tokens?.id_token) return alert("Login first.");
+      await refreshTokensIfNeeded();
       const r = await fetch(GRAPHQL_URL, {
         method: "POST",
         headers: { "content-type": "application/json", "authorization": tokens.id_token },
@@ -144,6 +185,7 @@
       const f = document.getElementById("file").files[0];
       if (!f) return alert("Choose a file first");
       if (!tokens?.id_token) return alert("Login first.");
+      await refreshTokensIfNeeded();
 
       const out = document.getElementById("upOut");
       out.textContent = "Requesting presigned URL…";
@@ -181,6 +223,7 @@
     // ====== Get short-lived read URL ======
     async function signUrl(customKey){
       if (!tokens?.id_token) return alert("Login first.");
+      await refreshTokensIfNeeded();
       const key = (customKey ?? document.getElementById("key").value).trim();
       if (!key) return alert("Enter an S3 key");
       const dl = document.getElementById("dl")?.checked ? "&download=true" : "";
@@ -216,6 +259,7 @@
     // ====== Delete (uses DELETE to match your API) ======
     async function deleteKey(){
       if (!tokens?.id_token) return alert("Login first.");
+      await refreshTokensIfNeeded();
       const key = document.getElementById("key").value.trim();
       if (!key) return alert("Enter an S3 key");
       if (!confirm(`Delete this object?\n\n${key}`)) return;
@@ -241,6 +285,7 @@
 
     async function listRecent(){
       if (!tokens?.id_token) return alert("Login first.");
+      await refreshTokensIfNeeded();
       const out = document.getElementById("listOut");
       out.dataset.loaded = "true";
       out.textContent = "Loading…";
@@ -292,14 +337,16 @@
     document.getElementById("btnDelete").addEventListener("click", deleteKey);
     document.getElementById("btnList").addEventListener("click", listRecent);
 
-    // Handle Hosted UI redirect
-    (function init(){
+    // Handle Hosted UI redirect / or refresh on load
+    (async function init(){
       const code = new URL(location.href).searchParams.get("code");
-      if (code) { exchangeCodeForTokens(code).catch(e => alert(e)); }
-      else { displayWho(); }
+      if (code) { await exchangeCodeForTokens(code).catch(e => alert(e)); return; }
+      if (tokens?.id_token) { await refreshTokensIfNeeded(); }
+      displayWho();
     })();
   </script>
 </body>
 </html>
+
 
 

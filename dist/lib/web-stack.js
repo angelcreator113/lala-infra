@@ -34,6 +34,7 @@ var __importStar = (this && this.__importStar) || (function () {
 })();
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.WebStack = void 0;
+const fs = __importStar(require("fs"));
 const cdk = __importStar(require("aws-cdk-lib"));
 const s3 = __importStar(require("aws-cdk-lib/aws-s3"));
 const cloudfront = __importStar(require("aws-cdk-lib/aws-cloudfront"));
@@ -115,7 +116,8 @@ class WebStack extends cdk.Stack {
         });
         // 2) Only index.html (short cache; do not prune)
         new s3deploy.BucketDeployment(this, "DeployHtml", {
-            sources: [s3deploy.Source.asset("site", { exclude: ["**", "!index.html"] })],
+            // Use Source.data so the file is guaranteed to be uploaded
+            sources: [s3deploy.Source.data("index.html", fs.readFileSync("site/index.html", "utf8"))],
             destinationBucket: this.bucket,
             distribution: this.distribution,
             distributionPaths: ["/index.html", "/"],
