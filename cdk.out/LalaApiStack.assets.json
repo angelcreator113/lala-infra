@@ -1,0 +1,21 @@
+{
+  "version": "48.0.0",
+  "files": {
+    "26a8e1cb36e3ce940732c99c44e5b882e586ce523d851d15a20d57592231411f": {
+      "displayName": "LalaApiStack Template",
+      "source": {
+        "path": "LalaApiStack.template.json",
+        "packaging": "file"
+      },
+      "destinations": {
+        "637423256673-us-east-1-c62d2342": {
+          "bucketName": "cdk-hnb659fds-assets-637423256673-us-east-1",
+          "objectKey": "26a8e1cb36e3ce940732c99c44e5b882e586ce523d851d15a20d57592231411f.json",
+          "region": "us-east-1",
+          "assumeRoleArn": "arn:${AWS::Partition}:iam::637423256673:role/cdk-hnb659fds-file-publishing-role-637423256673-us-east-1"
+        }
+      }
+    }
+  },
+  "dockerImages": {}
+}

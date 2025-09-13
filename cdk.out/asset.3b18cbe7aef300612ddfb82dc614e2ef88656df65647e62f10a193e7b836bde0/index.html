@@ -1,0 +1,76 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>Lala – Dev Tester</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <style>
+    body{font-family:system-ui,Segoe UI,Arial;margin:24px;max-width:780px}
+    button{padding:10px 14px;border:1px solid #ddd;border-radius:10px;cursor:pointer}
+    input[type=file]{margin:8px 0}
+    pre{background:#f6f6f6;padding:12px;border-radius:10px;overflow:auto}
+    .sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}
+  </style>
+</head>
+<body>
+  <h1>✨ Lala Dev Tester</h1>
+
+  <section aria-labelledby="gql-heading">
+    <h2 id="gql-heading">GraphQL “hello”</h2>
+    <button id="btnGql" aria-label="Run GraphQL hello query">Run query</button>
+    <pre id="gqlOut" role="status" aria-live="polite"></pre>
+  </section>
+
+  <hr />
+
+  <section aria-labelledby="upload-heading">
+    <h2 id="upload-heading">Upload to S3 (presigned URL)</h2>
+
+    <label for="file">Choose a file to upload</label><br />
+    <input id="file" name="file" type="file" aria-describedby="file-help" />
+    <div id="file-help" class="sr-only">After choosing a file, click Upload to send it securely to S3.</div>
+    <br />
+    <button id="btnUpload" aria-label="Upload selected file">Upload</button>
+    <pre id="upOut" role="status" aria-live="polite"></pre>
+  </section>
+
+  <script>
+    // DEV ONLY: using API key in browser is fine for smoke tests.
+    const GRAPHQL_URL = "https://muofh5mmufa2rfdsnxjycpiqfm.appsync-api.us-east-1.amazonaws.com/graphql";
+    const GRAPHQL_API_KEY = "da2-s55vzejmdnhixp7qmuwbygo22a";
+    const UPLOADS_API = "https://cvhoikmknh.execute-api.us-east-1.amazonaws.com/prod";
+
+    async function runGql() {
+      const r = await fetch(GRAPHQL_URL, {
+        method: "POST",
+        headers: { "content-type": "application/json", "x-api-key": GRAPHQL_API_KEY },
+        body: JSON.stringify({ query: "query { hello }" })
+      });
+      document.getElementById("gqlOut").textContent = await r.text();
+    }
+
+    async function upload() {
+      const f = document.getElementById("file").files[0];
+      if (!f) { alert("Choose a file first"); return; }
+
+      // 1) get a presigned URL
+      const prs = await fetch(UPLOADS_API.replace(/\/$/,"") + "/presign", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ filename: f.name, contentType: f.type || "application/octet-stream" })
+      });
+      const { url, key, error } = await prs.json();
+      if (error) throw new Error(error);
+
+      // 2) PUT to S3
+      const put = await fetch(url, { method: "PUT", headers: { "content-type": f.type || "application/octet-stream" }, body: f });
+      if (!put.ok) throw new Error("PUT failed: " + put.status);
+
+      document.getElementById("upOut").textContent = "Uploaded ✅\nS3 key: " + key;
+    }
+
+    document.getElementById("btnGql").onclick = runGql;
+    document.getElementById("btnUpload").onclick = upload;
+  </script>
+</body>
+</html>

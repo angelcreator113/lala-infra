@@ -1,0 +1,21 @@
+{
+  "version": "48.0.0",
+  "files": {
+    "5756dc70920bbaf281910032099478a8832515d4a80ede0e8cef68391833d897": {
+      "displayName": "LalaIdentityStack Template",
+      "source": {
+        "path": "LalaIdentityStack.template.json",
+        "packaging": "file"
+      },
+      "destinations": {
+        "637423256673-us-east-1-6bf0df3c": {
+          "bucketName": "cdk-hnb659fds-assets-637423256673-us-east-1",
+          "objectKey": "5756dc70920bbaf281910032099478a8832515d4a80ede0e8cef68391833d897.json",
+          "region": "us-east-1",
+          "assumeRoleArn": "arn:${AWS::Partition}:iam::637423256673:role/cdk-hnb659fds-file-publishing-role-637423256673-us-east-1"
+        }
+      }
+    }
+  },
+  "dockerImages": {}
+}
