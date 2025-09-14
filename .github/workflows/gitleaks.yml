@@ -4,44 +4,40 @@ on:
   push:
     branches: [ main ]
   pull_request:
-  workflow_dispatch:
 
 permissions:
   contents: read
-  security-events: write
+  security-events: write   # required to upload SARIF
 
 jobs:
   gitleaks:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
 
-      # Install the CLI
-      - name: Install gitleaks
-        uses: gitleaks/gitleaks-action@v2
-        with:
-          version: latest
-        id: install
-        # ^ this action just installs the binary to PATH
-
-      # ---- OPTION A: report-only (keeps the check green) ----
-      # change --exit-code 0  -> job always succeeds
-      # ---- OPTION B: blocking (breaks the build on leaks) ----
-      # change --exit-code 1  and REMOVE `continue-on-error: true`
-      - name: Run Gitleaks (generate SARIF)
+      # Run gitleaks and ALWAYS create a SARIF file
+      - name: Run gitleaks (snapshot only) -> SARIF
+        shell: bash
         run: |
-          gitleaks detect \
-            --source . \
+          set -e
+          curl -sSL https://github.com/gitleaks/gitleaks/releases/latest/download/gitleaks-linux-amd64 -o gitleaks
+          chmod +x gitleaks
+          # scan only the current workspace (not git history), redact findings, write SARIF
+          ./gitleaks detect \
+            --no-git \
+            --redact \
             --report-format sarif \
             --report-path gitleaks.sarif \
-            --redact \
             --exit-code 0
-        continue-on-error: true
 
-      - name: Upload results to GitHub Security
-        if: always()
+          # OPTIONAL: fail the job if the SARIF contains any results
+          if grep -q '"results":\s*\[' gitleaks.sarif && ! grep -q '"results":\s*\[\s*\]' gitleaks.sarif; then
+            echo "Gitleaks found potential secrets in the current snapshot."
+            echo "See Code scanning alerts for details."
+            exit 1
+          fi
+
+      - name: Upload SARIF to GitHub Security
         uses: github/codeql-action/upload-sarif@v3
         with:
           sarif_file: gitleaks.sarif

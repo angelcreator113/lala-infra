@@ -1,43 +1,12 @@
-name: Secret Scan (Gitleaks)
+# .gitleaks.toml
+title = "lala-infra gitleaks config"
 
-on:
-  push:
-    branches: [ main ]
-  pull_request:
-
-permissions:
-  contents: read
-  security-events: write   # required to upload SARIF
-
-jobs:
-  gitleaks:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-
-      # Run gitleaks and ALWAYS create a SARIF file
-      - name: Run gitleaks (snapshot only) -> SARIF
-        shell: bash
-        run: |
-          set -e
-          curl -sSL https://github.com/gitleaks/gitleaks/releases/latest/download/gitleaks-linux-amd64 -o gitleaks
-          chmod +x gitleaks
-          # scan only the current workspace (not git history), redact findings, write SARIF
-          ./gitleaks detect \
-            --no-git \
-            --redact \
-            --report-format sarif \
-            --report-path gitleaks.sarif \
-            --exit-code 0
-
-          # OPTIONAL: fail the job if the SARIF contains any results
-          if grep -q '"results":\s*\[' gitleaks.sarif && ! grep -q '"results":\s*\[\s*\]' gitleaks.sarif; then
-            echo "Gitleaks found potential secrets in the current snapshot."
-            echo "See Code scanning alerts for details."
-            exit 1
-          fi
-
-      - name: Upload SARIF to GitHub Security
-        uses: github/codeql-action/upload-sarif@v3
-        with:
-          sarif_file: gitleaks.sarif
+[allowlist]
+description = "Ignore generated/third-party content"
+paths = [
+  '''^cdk\.out/''',
+  '''^dist/''',
+  '''^node_modules/''',
+  '''^tools/''',
+  '''^site/assets/icons/''',
+]
