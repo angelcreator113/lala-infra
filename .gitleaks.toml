@@ -1,0 +1,15 @@
+title = "gitleaks config"
+
+[allowlist]
+  description = "Ignore generated/binary and test dirs"
+  paths = [
+    '''^git-secrets/''',
+    '''^node_modules/''',
+    '''^cdk\.out/''',
+    '''^dist/''',
+    '''^site/assets/''',
+    '''\.png$''',
+    '''\.ico$''',
+    '''\.svg$''',
+    '''\.webmanifest$'''
+  ]
