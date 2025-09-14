@@ -19,3 +19,5 @@ site/assets/cache/
 # keep old path out
 git-secrets/
 
+cdk.out/
+dist/

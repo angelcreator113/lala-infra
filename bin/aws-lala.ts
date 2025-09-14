@@ -4,6 +4,7 @@ import { WebStack } from "../lib/web-stack";
 import { IdentityStack } from "../lib/identity-stack";
 import { ApiStack } from "../lib/api-stack";
 import { UploadsStack } from "../lib/uploads-stack";
+import { CiRoleStack } from "../lib/ci-role-stack"; // <-- added
 
 const app = new cdk.App();
 
@@ -12,22 +13,45 @@ const env = {
   region: process.env.CDK_DEFAULT_REGION || "us-east-1",
 };
 
-// 1) Web (for Site URL)
-const web = new WebStack(app, "LalaWebStack", { env });
+// 1) Web (custom domain served by CloudFront)
+const web = new WebStack(app, "LalaWebStack", {
+  env,
+  rootDomainName: "stylingadventures.com",
+  appSubdomain: "app",
+});
 
-// 2) Cognito using the CloudFront URL as callback (both forms)
-const base = `https://${web.distribution.distributionDomainName}`;
-const siteNoSlash = base;
-const siteSlash = base.endsWith("/") ? base : `${base}/`;
+// Branded & fallback origins
+const appOrigin = "https://app.stylingadventures.com";
+const cfOrigin  = `https://${web.distribution.distributionDomainName}`;
+const callbackAndLogout = [
+  appOrigin, `${appOrigin}/`,
+  cfOrigin,  `${cfOrigin}/`,
+  "http://localhost:5173",
+  "http://localhost:3000",
+];
 
+// 2) Cognito Hosted UI (both forms of CF URL + local dev)
 const id = new IdentityStack(app, "LalaIdentityStack", {
   env,
-  callbackUrls: [siteNoSlash, siteSlash, "http://localhost:5173", "http://localhost:3000"],
-  logoutUrls:   [siteNoSlash, siteSlash, "http://localhost:5173", "http://localhost:3000"],
+  callbackUrls: callbackAndLogout,
+  logoutUrls:   callbackAndLogout,
 });
 
 // 3) AppSync (Cognito auth)
 new ApiStack(app, "LalaApiStack", { env, userPool: id.userPool });
 
-// 4) Uploads API + S3 (Cognito-protected)
-new UploadsStack(app, "LalaUploadsStack", { env, userPool: id.userPool });
+// 4) Uploads (S3 + rules)
+new UploadsStack(app, "LalaUploadsStack", {
+  env,
+  userPool: id.userPool,
+  // Allow branded domain, CF fallback, and local dev (both ports)
+  allowedOrigins: [appOrigin, cfOrigin, "http://localhost:5173", "http://localhost:3000"],
+});
+
+// 5) CI Role for GitHub OIDC → CDK deploys
+new CiRoleStack(app, "LalaCiRoleStack", {
+  env,
+  githubRepo: "YOUR_ORG/YOUR_REPO",   // <-- update this!
+  githubRef: "refs/heads/main",
+  roleName: "GitHubOIDC-CDK-Deploy",
+});

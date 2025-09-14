@@ -5,14 +5,10 @@ import * as apigateway from "aws-cdk-lib/aws-apigateway";
 import * as lambda from "aws-cdk-lib/aws-lambda";
 import * as cognito from "aws-cdk-lib/aws-cognito";
 
-/** Lock S3/API CORS to these exact browser origins. */
-const ALLOWED_ORIGINS = [
-  "https://app.stylingadventures.com",
-  "http://localhost:3000",
-];
-
 export interface UploadsStackProps extends cdk.StackProps {
   userPool: cognito.IUserPool;
+  /** Exact browser origins that may call the API/S3 (defaults shown below). */
+  allowedOrigins?: string[];
 }
 
 export class UploadsStack extends cdk.Stack {
@@ -22,8 +18,15 @@ export class UploadsStack extends cdk.Stack {
   constructor(scope: Construct, id: string, props: UploadsStackProps) {
     super(scope, id, props);
 
+    // ---- Allowed origins (defaults for your app + localhost) ----
+    const allowedOrigins =
+      props.allowedOrigins && props.allowedOrigins.length
+        ? props.allowedOrigins
+        : ["https://app.stylingadventures.com", "http://localhost:3000"];
+    const allowedOriginsCsv = allowedOrigins.join(",");
+
     // ==========================
-    // S3 uploads bucket (locked CORS)
+    // S3 uploads bucket (CORS)
     // ==========================
     this.bucket = new s3.Bucket(this, "UploadsBucket", {
       blockPublicAccess: s3.BlockPublicAccess.BLOCK_ALL,
@@ -31,11 +34,11 @@ export class UploadsStack extends cdk.Stack {
       enforceSSL: true,
       cors: [
         {
-          allowedOrigins: ALLOWED_ORIGINS,
+          allowedOrigins,
           allowedMethods: [s3.HttpMethods.PUT, s3.HttpMethods.GET, s3.HttpMethods.HEAD],
           allowedHeaders: [
             "content-type",
-            "x-amz-tagging",           // you send this on PUT
+            "x-amz-tagging",
             "x-amz-acl",
             "x-amz-security-token",
             "x-amz-user-agent",
@@ -43,7 +46,7 @@ export class UploadsStack extends cdk.Stack {
             "x-amz-meta-*",
           ],
           exposedHeaders: ["ETag", "x-amz-request-id", "x-amz-version-id"],
-          maxAge: 600, // seconds
+          maxAge: 600,
         },
       ],
       lifecycleRules: [
@@ -59,7 +62,6 @@ export class UploadsStack extends cdk.Stack {
     const allowCt =
       "image/jpeg,image/png,image/webp,image/gif,application/pdf,text/plain";
     const maxBytes = "10485760"; // 10 MB
-    const allowedOriginsCsv = ALLOWED_ORIGINS.join(",");
 
     // Shared Lambda env
     const baseEnv = {
@@ -67,18 +69,12 @@ export class UploadsStack extends cdk.Stack {
       ALLOWED_ORIGINS: allowedOriginsCsv,
     };
 
-    // ==============
-    // PUT presigner
-    // ==============
+    // ============== PUT presigner ==============
     const presignFn = new lambda.Function(this, "PresignFn", {
       runtime: lambda.Runtime.PYTHON_3_12,
       handler: "index.handler",
       timeout: cdk.Duration.seconds(10),
-      environment: {
-        ...baseEnv,
-        ALLOW_CT: allowCt,
-        MAX_BYTES: maxBytes,
-      },
+      environment: { ...baseEnv, ALLOW_CT: allowCt, MAX_BYTES: maxBytes },
       code: lambda.Code.fromInline(`
 import os, json, boto3
 from uuid import uuid4
@@ -126,9 +122,7 @@ def handler(event, context):
     });
     this.bucket.grantPut(presignFn);
 
-    // ===========
-    // GET signer
-    // ===========
+    // ============== GET signer ==============
     const signGetFn = new lambda.Function(this, "SignGetFn", {
       runtime: lambda.Runtime.PYTHON_3_12,
       handler: "index.handler",
@@ -175,9 +169,7 @@ def handler(event, context):
     });
     this.bucket.grantRead(signGetFn);
 
-    // =====
-    // LIST
-    // =====
+    // ============== LIST ==============
     const listFn = new lambda.Function(this, "ListFn", {
       runtime: lambda.Runtime.PYTHON_3_12,
       handler: "index.handler",
@@ -224,9 +216,7 @@ def handler(event, context):
     });
     this.bucket.grantRead(listFn);
 
-    // =======
-    // DELETE
-    // =======
+    // ============== DELETE ==============
     const deleteFn = new lambda.Function(this, "DeleteFn", {
       runtime: lambda.Runtime.PYTHON_3_12,
       handler: "index.handler",
@@ -274,40 +264,52 @@ def handler(event, context):
     this.bucket.grantDelete(deleteFn);
 
     // ==========================
-    // API Gateway (locked CORS)
+    // API Gateway (CORS + Auth)
     // ==========================
     this.api = new apigateway.RestApi(this, "UploadsApi", {
       defaultCorsPreflightOptions: {
-        allowOrigins: ALLOWED_ORIGINS,
+        allowOrigins: allowedOrigins,
         allowMethods: ["GET", "POST", "DELETE", "OPTIONS"],
-        allowHeaders: apigateway.Cors.DEFAULT_HEADERS, // includes content-type, authorization, etc.
+        allowHeaders: apigateway.Cors.DEFAULT_HEADERS,
       },
     });
 
-    const authorizer = new apigateway.CognitoUserPoolsAuthorizer(
-      this,
-      "UploadsAuthorizer",
-      { cognitoUserPools: [props.userPool] }
-    );
+    // Ensure even Gateway-generated 4XX/5XX include CORS so the browser can see the message
+    new apigateway.GatewayResponse(this, "Default4xx", {
+      restApi: this.api,
+      type: apigateway.ResponseType.DEFAULT_4XX,
+      responseHeaders: {
+        "Access-Control-Allow-Origin": "'*'",
+        "Access-Control-Allow-Headers": "'*'",
+        "Access-Control-Allow-Methods": "'GET,POST,DELETE,OPTIONS'",
+      },
+    });
+    new apigateway.GatewayResponse(this, "Default5xx", {
+      restApi: this.api,
+      type: apigateway.ResponseType.DEFAULT_5XX,
+      responseHeaders: {
+        "Access-Control-Allow-Origin": "'*'",
+        "Access-Control-Allow-Headers": "'*'",
+        "Access-Control-Allow-Methods": "'GET,POST,DELETE,OPTIONS'",
+      },
+    });
+
+    const authorizer = new apigateway.CognitoUserPoolsAuthorizer(this, "UploadsAuthorizer", {
+      cognitoUserPools: [props.userPool],
+    });
 
     const withAuth = (fn: lambda.Function) => ({
       integration: new apigateway.LambdaIntegration(fn),
-      opts: {
-        authorizer,
-        authorizationType: apigateway.AuthorizationType.COGNITO,
-      },
+      opts: { authorizer, authorizationType: apigateway.AuthorizationType.COGNITO },
     });
 
-    this.api.root
-      .addResource("presign")
+    this.api.root.addResource("presign")
       .addMethod("POST", withAuth(presignFn).integration, withAuth(presignFn).opts);
 
-    this.api.root
-      .addResource("sign-url")
+    this.api.root.addResource("sign-url")
       .addMethod("GET", withAuth(signGetFn).integration, withAuth(signGetFn).opts);
 
-    this.api.root
-      .addResource("list")
+    this.api.root.addResource("list")
       .addMethod("GET", withAuth(listFn).integration, withAuth(listFn).opts);
 
     const del = this.api.root.addResource("delete");

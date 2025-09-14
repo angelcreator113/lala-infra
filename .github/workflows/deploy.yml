@@ -1,0 +1,88 @@
+# yaml-language-server: $schema=https://json.schemastore.org/github-workflow.json
+name: CDK Deploy
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+
+permissions:
+  id-token: write
+  contents: read
+
+concurrency:
+  group: cdk-deploy-${{ github.ref }}
+  cancel-in-progress: false
+
+env:
+  AWS_REGION: us-east-1
+  # Space-separated stack names (omit to deploy all)
+  CDK_DEPLOY_STACKS: LalaWebStack LalaIdentityStack LalaApiStack LalaUploadsStack
+  # CDK context flags (space-separated). Example: "wafBlock=true rateLimit=2000"
+  CDK_CONTEXT: wafBlock=true
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install deps
+        run: npm ci
+
+      - name: Configure AWS creds (OIDC)
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          # the "|| ''" keeps the editor quiet if the secret isn't present locally
+          role-to-assume: ${{ secrets.DEPLOY_ROLE_ARN || '' }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      # harmless if already bootstrapped in the account/region
+      - name: CDK bootstrap
+        run: npx cdk bootstrap
+
+      - name: CDK synth
+        run: npx cdk synth
+
+      - name: CDK deploy
+        shell: bash
+        run: |
+          set -euo pipefail
+          CTX_ARGS=""
+          if [ -n "${CDK_CONTEXT:-}" ]; then
+            for kv in ${CDK_CONTEXT}; do CTX_ARGS="${CTX_ARGS} -c ${kv}"; done
+          fi
+          STACK_ARGS="${CDK_DEPLOY_STACKS:---all}"
+          echo "Deploying stacks: ${STACK_ARGS}"
+          npx cdk deploy ${CTX_ARGS} --require-approval never ${STACK_ARGS}
+
+      # ---------- optional SNS notifications ----------
+      - name: Notify success (SNS)
+        if: ${{ success() && env.SNS_ENABLED == '1' && env.SNS_TOPIC_ARN != '' }}
+        env:
+          SNS_ENABLED:  ${{ secrets.SNS_ENABLED  || '0' }}   # default off
+          SNS_TOPIC_ARN: ${{ secrets.SNS_TOPIC_ARN || '' }}  # AlertsTopicArn output
+        run: |
+          aws sns publish \
+            --topic-arn "$SNS_TOPIC_ARN" \
+            --subject "CDK deploy ✅" \
+            --message "Repo $GITHUB_REPOSITORY, sha $GITHUB_SHA"
+
+      - name: Notify failure (SNS)
+        if: ${{ failure() && env.SNS_ENABLED == '1' && env.SNS_TOPIC_ARN != '' }}
+        env:
+          SNS_ENABLED:  ${{ secrets.SNS_ENABLED  || '0' }}
+          SNS_TOPIC_ARN: ${{ secrets.SNS_TOPIC_ARN || '' }}
+        run: |
+          aws sns publish \
+            --topic-arn "$SNS_TOPIC_ARN" \
+            --subject "CDK deploy ❌" \
+            --message "Repo $GITHUB_REPOSITORY, run $GITHUB_RUN_ID failed"
