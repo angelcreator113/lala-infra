@@ -1,0 +1,44 @@
+name: Secret Scan (Gitleaks)
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  security-events: write   # <-- required for upload-sarif
+
+jobs:
+  gitleaks:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0   # scan history if needed
+
+      - name: Install Gitleaks
+        run: |
+          curl -sSL https://github.com/gitleaks/gitleaks/releases/download/v8.18.4/gitleaks_8.18.4_linux_x64.tar.gz \
+            | tar -xz gitleaks
+          sudo mv gitleaks /usr/local/bin/gitleaks
+          gitleaks version
+
+      # Create SARIF (this is the file the next step uploads)
+      - name: Run Gitleaks (generate SARIF)
+        # Fail the job only if leaks are found; still produce SARIF
+        run: |
+          set -e
+          gitleaks detect \
+            --source . \
+            --report-format sarif \
+            --report-path gitleaks.sarif \
+            --redact
+          test -f gitleaks.sarif
+
+      - name: Upload results to GitHub Security
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: gitleaks.sarif
