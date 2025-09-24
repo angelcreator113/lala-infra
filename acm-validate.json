@@ -1,0 +1,18 @@
+{
+    "Changes":  [
+                    {
+                        "ResourceRecordSet":  {
+                                                  "TTL":  300,
+                                                  "Name":  "_9802a19f8abc4e5e268fcd1402d1f956.app.stylingadventures.com.",
+                                                  "Type":  "CNAME",
+                                                  "ResourceRecords":  [
+                                                                          {
+                                                                              "Value":  "_be30459487e85285f923b7fb7edba419.xlfgrmvvlj.acm-validations.aws."
+                                                                          }
+                                                                      ]
+                                              },
+                        "Action":  "UPSERT"
+                    }
+                ],
+    "Comment":  "ACM validation for app.stylingadventures.com"
+}

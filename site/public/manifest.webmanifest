@@ -1,0 +1,11 @@
+{
+  "name": "Lala Dev Tester",
+  "short_name": "Lala",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#84D2F6",
+  "icons": [
+    { "src": "/favicon.ico", "sizes": "any" }
+  ]
+}

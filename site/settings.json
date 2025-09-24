@@ -1,0 +1,1 @@
+{"DestinationArn":"arn:aws:logs:us-east-1:637423256673:log-group:/aws/apigw/lala-fan-api-prod:*","Format":"{ \"requestId\":\"$context.requestId\",\"routeKey\":\"$context.routeKey\",\"status\":$context.status,\"authorizerError\":\"$context.authorizer.error\",\"jwt\":\"$context.authorizer.jwt\" }"}

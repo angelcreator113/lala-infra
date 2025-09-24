@@ -1,6 +1,9 @@
 {
-  "app": "npx ts-node --prefer-ts-exts bin/aws-lala.ts",
+  "app": "npx ts-node --project tsconfig.cdk.json --prefer-ts-exts bin/aws-lala.ts",
   "context": {
-    "@aws-cdk/core:newStyleStackSynthesis": "true"
+    "@aws-cdk/core:newStyleStackSynthesis": true,
+    "rootDomain": "stylingadventures.com",
+    "appSubdomain": "app",
+    "cfFallback": ""
   }
 }

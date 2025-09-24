@@ -2,5 +2,8 @@
   "hosted-zone:account=637423256673:domainName=stylingadventures.com:region=us-east-1": {
     "Id": "/hostedzone/Z07658942274TNDUJGNOA",
     "Name": "stylingadventures.com."
-  }
+  },
+  "acknowledged-issue-numbers": [
+    34892
+  ]
 }

@@ -1,0 +1,32 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* light styling to resemble your tester */
+:root {
+  --bg: #faf7ff;
+}
+html, body {
+  height: 100%;
+}
+body {
+  @apply bg-white text-gray-900 antialiased;
+  background: var(--bg);
+}
+.wrap {
+  @apply max-w-4xl mx-auto p-6 md:p-8;
+}
+.topbar {
+  @apply flex items-center justify-between mb-6;
+}
+.card {
+  @apply bg-white rounded-2xl shadow-sm border border-gray-200 p-6 mb-6;
+}
+.btn {
+  @apply inline-flex items-center justify-center rounded-xl bg-brand-600 text-white px-4 py-2 font-medium hover:bg-brand-700 transition;
+}
+.btn-ghost { @apply bg-transparent text-gray-700 border border-gray-300 hover:bg-gray-50; }
+.btn-danger { @apply bg-red-600 hover:bg-red-700; }
+.row { @apply mt-3 flex items-center gap-3; }
+.muted { @apply text-gray-500 text-sm; }
+.signed a { @apply text-brand-700 underline; }

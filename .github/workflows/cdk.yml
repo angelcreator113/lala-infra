@@ -1,0 +1,30 @@
+name: cdk
+on:
+  push:
+    branches: [ infragpt/audit-fixes ]
+  pull_request:
+
+permissions:
+  id-token: write
+  contents: read
+
+jobs:
+  synth-diff:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: '20' }
+      - run: npm ci
+      - run: npm run build
+      - run: npx cdk synth
+      - run: npx cdk diff --no-rollback
+      # to deploy on branch, uncomment next step after your OIDC role is set
+      # - name: Deploy
+      #   env:
+      #     AWS_REGION: us-east-1
+      #     AWS_ROLE_TO_ASSUME: ${{ vars.AWS_ROLE_TO_ASSUME }}
+      #   run: |
+      #     npx aws-actions/configure-aws-credentials \
+      #       --role-to-assume "${AWS_ROLE_TO_ASSUME}" --aws-region "${AWS_REGION}"
+      #     npx cdk deploy --all --require-approval=never

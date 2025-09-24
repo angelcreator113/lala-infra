@@ -1,0 +1,124 @@
+{
+    "CallerReference":  "493d4ec2-7306-8dfc-2b11-bd9cea1f5a13",
+    "Aliases":  {
+                    "Quantity":  1,
+                    "Items":  [
+                                  "app.stylingadventures.com"
+                              ]
+                },
+    "DefaultRootObject":  "index.html",
+    "Origins":  {
+                    "Quantity":  1,
+                    "Items":  [
+                                  {
+                                      "Id":  "LalaWebStackCfSiteDistributionOrigin1B368D50B",
+                                      "DomainName":  "lalawebstack-sitebucket397a1860-vr1zpknheakz.s3.us-east-1.amazonaws.com",
+                                      "OriginPath":  "",
+                                      "CustomHeaders":  {
+                                                            "Quantity":  0
+                                                        },
+                                      "S3OriginConfig":  {
+                                                             "OriginAccessIdentity":  "",
+                                                             "OriginReadTimeout":  30
+                                                         },
+                                      "ConnectionAttempts":  3,
+                                      "ConnectionTimeout":  10,
+                                      "OriginShield":  {
+                                                           "Enabled":  false
+                                                       },
+                                      "OriginAccessControlId":  "E3CBPHH5AQQMS"
+                                  }
+                              ]
+                },
+    "OriginGroups":  {
+                         "Quantity":  0
+                     },
+    "DefaultCacheBehavior":  {
+                                 "TargetOriginId":  "LalaWebStackCfSiteDistributionOrigin1B368D50B",
+                                 "TrustedSigners":  {
+                                                        "Enabled":  false,
+                                                        "Quantity":  0
+                                                    },
+                                 "TrustedKeyGroups":  {
+                                                          "Enabled":  false,
+                                                          "Quantity":  0
+                                                      },
+                                 "ViewerProtocolPolicy":  "redirect-to-https",
+                                 "AllowedMethods":  {
+                                                        "Quantity":  2,
+                                                        "Items":  [
+                                                                      "HEAD",
+                                                                      "GET"
+                                                                  ],
+                                                        "CachedMethods":  {
+                                                                              "Quantity":  2,
+                                                                              "Items":  [
+                                                                                            "HEAD",
+                                                                                            "GET"
+                                                                                        ]
+                                                                          }
+                                                    },
+                                 "SmoothStreaming":  false,
+                                 "Compress":  true,
+                                 "LambdaFunctionAssociations":  {
+                                                                    "Quantity":  0
+                                                                },
+                                 "FunctionAssociations":  {
+                                                              "Quantity":  0
+                                                          },
+                                 "FieldLevelEncryptionId":  "",
+                                 "CachePolicyId":  "658327ea-f89d-4fab-a63d-7e88639e58f6",
+                                 "ResponseHeadersPolicyId":  "0e7fd887-8503-4f5b-975a-6f7202abe780",
+                                 "GrpcConfig":  {
+                                                    "Enabled":  false
+                                                }
+                             },
+    "CacheBehaviors":  {
+                           "Quantity":  0
+                       },
+    "CustomErrorResponses":  {
+                                 "Quantity":  2,
+                                 "Items":  [
+                                               {
+                                                   "ErrorCode":  403,
+                                                   "ResponsePagePath":  "/index.html",
+                                                   "ResponseCode":  "200",
+                                                   "ErrorCachingMinTTL":  1
+                                               },
+                                               {
+                                                   "ErrorCode":  404,
+                                                   "ResponsePagePath":  "/index.html",
+                                                   "ResponseCode":  "200",
+                                                   "ErrorCachingMinTTL":  1
+                                               }
+                                           ]
+                             },
+    "Comment":  "",
+    "Logging":  {
+                    "Enabled":  true,
+                    "IncludeCookies":  false,
+                    "Bucket":  "lalawebstack-cflogsbucket55c5f700-lrpxrmwilqwh.s3.us-east-1.amazonaws.com",
+                    "Prefix":  "cf/"
+                },
+    "PriceClass":  "PriceClass_All",
+    "Enabled":  true,
+    "ViewerCertificate":  {
+                              "CloudFrontDefaultCertificate":  false,
+                              "ACMCertificateArn":  "arn:aws:acm:us-east-1:637423256673:certificate/3431f231-c857-4365-b40f-f5a14700120a",
+                              "SSLSupportMethod":  "sni-only",
+                              "MinimumProtocolVersion":  "TLSv1.2_2021",
+                              "Certificate":  "arn:aws:acm:us-east-1:637423256673:certificate/3431f231-c857-4365-b40f-f5a14700120a",
+                              "CertificateSource":  "acm"
+                          },
+    "Restrictions":  {
+                         "GeoRestriction":  {
+                                                "RestrictionType":  "none",
+                                                "Quantity":  0
+                                            }
+                     },
+    "WebACLId":  "arn:aws:wafv2:us-east-1:637423256673:global/webacl/AppWebAcl/77da4945-7e70-423f-b1f0-7e01820118d8",
+    "HttpVersion":  "http2",
+    "IsIPV6Enabled":  true,
+    "ContinuousDeploymentPolicyId":  "",
+    "Staging":  false
+}
