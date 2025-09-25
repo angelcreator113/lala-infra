@@ -10,7 +10,12 @@
     "resolveJsonModule": true,
     "isolatedModules": true,
     "noEmit": true,
-    "skipLibCheck": true
+    "skipLibCheck": true,
+
+    // ✅ add these:
+    "baseUrl": "src",
+    "paths": { "@/*": ["*"] },
+    "forceConsistentCasingInFileNames": true
   },
   "include": ["src", "vite-env.d.ts"]
 }

@@ -1,7 +1,7 @@
-import { useState } from "react";
+﻿import { useState } from "react";
 import { getIdToken } from "../auth";
 
-const UPLOADS_API = import.meta.env.VITE_UPLOADS_API as string;
+import { UPLOADS_API } from "../config";
 
 export default function UploadsTester() {
   const [out, setOut] = useState("");
@@ -56,3 +56,4 @@ export default function UploadsTester() {
 function parseJwt(token: string) {
   try { return JSON.parse(atob(token.split(".")[1])); } catch { return null; }
 }
+

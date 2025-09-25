@@ -1,4 +1,4 @@
-// site/src/services/leaderboard.mock.ts
+﻿// site/src/services/leaderboard.mock.ts
 import type {
   LeaderboardQuery,
   LeaderboardResult,

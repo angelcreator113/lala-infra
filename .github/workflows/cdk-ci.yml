@@ -1,0 +1,95 @@
+name: cdk-ci
+
+on:
+  pull_request:
+    branches: ["*"]
+  push:
+    branches: ["main"]
+
+permissions:
+  id-token: write   # required for OIDC
+  contents: read
+
+jobs:
+  build:
+    name: Build & Synth
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Install deps
+        run: npm ci
+
+      - name: Build (tsc)
+        run: npm run build
+
+      - name: CDK synth
+        run: npx cdk synth --quiet > cdk-synth.out
+
+      - name: Upload synth artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: cdk-synth
+          path: cdk-synth.out
+
+  diff:
+    name: CDK Diff (fail on drift)
+    runs-on: ubuntu-latest
+    needs: build
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Install deps
+        run: npm ci
+
+      - name: Build (tsc)
+        run: npm run build
+
+      - name: CDK diff
+        run: npx cdk diff --fail
+
+  deploy-test:
+    name: Deploy to test (on main)
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    needs: build
+    env:
+      AWS_REGION: us-east-1
+      # Add this secret in GitHub → Settings → Secrets and variables → Actions
+      # value should be the role ARN that trusts GitHub OIDC
+      AWS_OIDC_ROLE_ARN: ${{ secrets.AWS_OIDC_ROLE_ARN }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Configure AWS Credentials (OIDC)
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ env.AWS_OIDC_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Install deps
+        run: npm ci
+
+      - name: Build (tsc)
+        run: npm run build
+
+      - name: CDK Deploy (no approval)
+        run: npx cdk deploy --require-approval never

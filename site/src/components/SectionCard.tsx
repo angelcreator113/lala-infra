@@ -1,4 +1,4 @@
-export default function SectionCard({
+﻿export default function SectionCard({
   title,
   children,
   right

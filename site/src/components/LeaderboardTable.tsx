@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+﻿import { useEffect, useMemo, useState } from "react";
 import { ChevronDown, ChevronUp, Search, Trophy } from "lucide-react";
 
 // If you haven't set up a TS path alias, use these relative imports:
@@ -192,7 +192,7 @@ export default function LeaderboardTable() {
       {/* Pagination */}
       <div className="flex items-center justify-between gap-3 p-4">
         <div className="text-xs text-gray-500">
-          Page {q.page} of {pages} • {total} total
+          Page {q.page} of {pages} â€¢ {total} total
         </div>
         <div className="flex items-center gap-2">
           <button

@@ -1,4 +1,4 @@
-import SectionCard from "../components/SectionCard";
+﻿import SectionCard from "../components/SectionCard";
 import UploadsTester from "../components/UploadsTester";
 
 export default function CreatorDashboard() {

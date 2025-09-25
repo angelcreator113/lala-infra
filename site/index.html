@@ -1,9 +1,13 @@
-<!doctype html>
+﻿<!doctype html>
 <html lang="en">
   <head>
     <meta charset="utf-8" />
-    <title>Lala – Dev Tester (Cognito)</title>
+    <title>Lala Platform</title>
     <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="color-scheme" content="light dark" />
+
+    <!-- Load the compiled CSS -->
+    <link rel="stylesheet" href="/main.css" />
 
     <!-- DEV CSP (relaxed). Prod headers come from CloudFront -->
     <meta http-equiv="Content-Security-Policy" content="
@@ -16,13 +20,15 @@
         https://cognito-idp.us-east-1.amazonaws.com https://*.auth.us-east-1.amazoncognito.com
         https://*.appsync-api.us-east-1.amazonaws.com wss://*.appsync-realtime-api.us-east-1.amazonaws.com
         https://*.s3.amazonaws.com;
+      frame-ancestors 'self';
       object-src 'none';
       base-uri 'self';
       upgrade-insecure-requests
-    ">
+    " />
   </head>
   <body>
     <div id="root"></div>
-    <script type="module" src="/src/main.tsx"></script>
+    <script type="module" src="/main.js"></script>
+    <noscript>This app requires JavaScript to run.</noscript>
   </body>
 </html>

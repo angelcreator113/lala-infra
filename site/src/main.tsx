@@ -1,4 +1,4 @@
-// src/main.tsx
+﻿// src/main.tsx
 import React from "react";
 import ReactDOM from "react-dom/client";
 import "../css/index.css";
@@ -10,7 +10,7 @@ import ErrorBoundary from "./components/ErrorBoundary";
 // Global client-side error logging (side-effect import)
 import "./logging/client-errors";
 
-// Auth callback (exchanges ?code=... → tokens; no-op if none)
+// Auth callback (exchanges ?code=... â†’ tokens; no-op if none)
 import { handleAuthCallback } from "./auth";
 
 async function boot() {

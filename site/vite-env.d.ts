@@ -1,4 +1,4 @@
-/// <reference types="vite/client" />
+﻿/// <reference types="vite/client" />
 
 // (optional) declare your own env keys for autocompletion:
 interface ImportMetaEnv {

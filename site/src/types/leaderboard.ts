@@ -1,4 +1,4 @@
-export type Timeframe = "today" | "week" | "month" | "all";
+﻿export type Timeframe = "today" | "week" | "month" | "all";
 
 export type SortDir = "asc" | "desc";
 export type SortField = "rank" | "points" | "streak";

@@ -1,6 +1,7 @@
-import { useEffect, useMemo, useState } from "react";
+﻿import { useEffect, useMemo, useState } from "react";
 import SectionCard from "../components/SectionCard";
 import { getIdToken } from "../auth";
+import { API_BASE } from "../config";
 
 type FanRow = {
   id: string;          // unique id (userId or email)
@@ -9,16 +10,16 @@ type FanRow = {
   avatarUrl?: string;  // optional
 };
 
-const API_BASE = import.meta.env.VITE_FAN_API;
-
 // --- Helper: medal for the top-3 ranks ---
-const medalForRank = (rank: number) => (rank === 1 ? "🥇" : rank === 2 ? "🥈" : rank === 3 ? "🥉" : null);
+const medalForRank = (rank: number) =>
+  rank === 1 ? "🥇" : rank === 2 ? "🥈" : rank === 3 ? "🥉" : null;
 
 // --- API calls ---
 async function fetchLeaderboard(): Promise<FanRow[]> {
   // PUBLIC endpoint (no token)
   const res = await fetch(`${API_BASE}/leaderboard`, { credentials: "omit" });
   if (!res.ok) throw new Error(`Leaderboard failed: ${res.status}`);
+
   // Backend returns { top: [...] } — normalize to FanRow[]
   const data = await res.json();
   const rows: FanRow[] = (data.top ?? []).map((it: any) => ({
@@ -66,7 +67,7 @@ export default function FanDashboard() {
         }
 
         if (my.status === "fulfilled") setMe(my.value);
-        // if rejected → ignore; user might be signed out
+        // if rejected -> ignore; user might be signed out
       } catch (e: any) {
         if (!alive) return;
         setError(e?.message ?? "Something went wrong");
@@ -111,7 +112,9 @@ export default function FanDashboard() {
                     return (
                       <tr
                         key={`${row.id}-${rank}`}
-                        className={`rounded-lg bg-white/70 dark:bg-white/5 shadow-sm ${isMe ? "ring-2 ring-violet-400/60" : ""}`}
+                        className={`rounded-lg bg-white/70 dark:bg-white/5 shadow-sm ${
+                          isMe ? "ring-2 ring-violet-400/60" : ""
+                        }`}
                       >
                         <td className="px-3 py-3 align-middle whitespace-nowrap">
                           <div className="flex items-center gap-2">
@@ -157,7 +160,7 @@ export default function FanDashboard() {
                   </div>
                 </>
               ) : me ? (
-                <div className="text-sm text-muted-foreground">You’re signed in, but not ranked yet.</div>
+                <div className="text-sm text-muted-foreground">You're signed in, but not ranked yet.</div>
               ) : (
                 <div className="text-sm text-muted-foreground">Sign in to see your position.</div>
               )}

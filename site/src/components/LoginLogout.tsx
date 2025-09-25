@@ -1,28 +1,40 @@
+﻿// src/components/LoginLogout.tsx
 import { useEffect, useState } from "react";
 import { login, logout, getIdToken } from "../auth";
 
-export function LoginLogout() {
-  const [who, setWho] = useState<string>("Signed out");
+type Who = { email?: string; name?: string } | null;
 
+function decodeIdToken(t?: string): Who {
+  if (!t) return null;
+  try {
+    const base64 = t.split(".")[1]?.replace(/-/g, "+").replace(/_/g, "/") ?? "";
+    const json = atob(base64);
+    const p = JSON.parse(json);
+    return { email: p.email, name: p.name ?? p["cognito:username"] };
+  } catch {
+    return null;
+  }
+}
+
+export function LoginLogout() {
+  const [who, setWho] = useState<Who>(decodeIdToken(getIdToken() ?? undefined));
+
+  // keep label in sync if tokens change (new login/logout in another tab)
   useEffect(() => {
-    const t = getIdToken();
-    if (!t) {
-      setWho("Signed out");
-      return;
-    }
-    try {
-      const payload = JSON.parse(atob((t.split(".")[1] || "").replace(/-/g, "+").replace(/_/g, "/")));
-      setWho(payload?.email || payload?.sub || "Signed in");
-    } catch {
-      setWho("Signed in");
-    }
+    const update = () => setWho(decodeIdToken(getIdToken() ?? undefined));
+    window.addEventListener("storage", update);
+    return () => window.removeEventListener("storage", update);
   }, []);
 
   return (
-    <div className="flex items-center gap-2">
+    <div className="row">
+      {who && (
+        <span className="signed">
+          Signed in as <strong>{who.name ?? who.email}</strong>
+        </span>
+      )}
       <button className="btn btn-ghost" onClick={login}>Login</button>
       <button className="btn btn-ghost" onClick={logout}>Logout</button>
-      <span className="muted">{who}</span>
     </div>
   );
 }
